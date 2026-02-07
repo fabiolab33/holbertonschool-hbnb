@@ -1,10 +1,11 @@
 # app/business/amenity.py
-from datetime import datetime
+# Task 1
+from app.business.base_model import BaseModel
 
-class Amenity:
+class Amenity(BaseModel):
+    """Amenity entity representing a feature of a place"""
+
     def __init__(self, name, description):
-        self.id = None
+        super().__init__()
         self.name = name
         self.description = description
-        self.created_at = None
-        self.updated_at = None
