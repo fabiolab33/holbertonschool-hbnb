@@ -1,82 +1,94 @@
+# app/api/users.py
 from flask_restx import Namespace, Resource, fields
 from flask import request
-from flask import current_app
 
-api = Namespace("Users", description="User operations")
+api = Namespace("users", description="User operations")
 
+# User model for API documentation
 user_model = api.model('User', {
-    'id': fields.String(readonly=True),
-    'first_name': fields.String(required=True),
-    'last_name': fields.String(required=True),
-    'email': fields.String(required=True),
+    'id': fields.String(readonly=True, description='User unique identifier'),
+    'first_name': fields.String(required=True, description='User first name'),
+    'last_name': fields.String(required=True, description='User last name'),
+    'email': fields.String(required=True, description='User email address')
+})
+
+# User input model (includes password for creation)
+user_input_model = api.model('UserInput', {
+    'first_name': fields.String(required=True, description='User first name'),
+    'last_name': fields.String(required=True, description='User last name'),
+    'email': fields.String(required=True, description='User email address'),
+    'password': fields.String(required=True, description='User password')
 })
 
 @api.route("/")
 class UserList(Resource):
+    @api.doc('list_users')
     @api.marshal_list_with(user_model)
     def get(self):
-        """Retrieve all users (password omitted)"""
+        """List all users"""
+        from app import facade
         users = facade.list_users()
-        result = []
-        for u in users:
-            result.append({
-                'id': u.id,
-                'first_name': u.first_name,
-                'last_name': u.last_name,
-                'email': u.email
-            })
-        return result, 200
+        return users
 
-    @api.expect(user_model, validate=True)
+    @api.doc('create_user')
+    @api.expect(user_input_model, validate=True)
     @api.marshal_with(user_model, code=201)
+    @api.response(201, 'User created successfully')
+    @api.response(400, 'Invalid input or email already exists')
     def post(self):
         """Create a new user"""
+        from app import facade
         data = request.get_json()
-        user = facade.create_user(
-            first_name=data.get('first_name'),
-            last_name=data.get('last_name'),
-            email=data.get('email'),
-            password=data.get('password', 'default123')  # placeholder password
-        )
-        return {
-            'id': user.id,
-            'first_name': user.first_name,
-            'last_name': user.last_name,
-            'email': user.email
-        }, 201
+
+        try:
+            user = facade.create_user(
+                first_name=data['first_name'],
+                last_name=data['last_name'],
+                email=data['email'],
+                password=data['password']
+            )
+            return user, 201
+
+        except ValueError as e:
+            api.abort(400, str(e))
+        except Exception as e:
+            api.abort(500, f"An error occurred: {str(e)}")
 
 @api.route("/<string:user_id>")
+@api.param('user_id', 'The user unique identifier')
 class UserResource(Resource):
+    @api.doc('get_user')
     @api.marshal_with(user_model)
+    @api.response(404, 'User not found')
     def get(self, user_id):
         """Get a user by ID"""
-        user = facade.user_repo.get(user_id)
+        from app import facade
+        user = facade.get_user(user_id)
         if not user:
             api.abort(404, "User not found")
-        return {
-            'id': user.id,
-            'first_name': user.first_name,
-            'last_name': user.last_name,
-            'email': user.email
-        }
+        return user
 
+    @api.doc('update_user')
     @api.expect(user_model, validate=True)
     @api.marshal_with(user_model)
+    @api.response(200, 'User updated successfully')
+    @api.response(400, 'Invalid input')
+    @api.response(404, 'User not found')
     def put(self, user_id):
-        """Update a user's information"""
-        user = facade.user_repo.get(user_id)
-        if not user:
-            api.abort(404, "User not found")
+        """Update a user"""
+        from app import facade
         data = request.get_json()
-        # Update user using business logic
-        user.update_profile(
-            first_name=data.get('first_name', user.first_name),
-            last_name=data.get('last_name', user.last_name),
-            email=data.get('email', user.email)
-        )
-        return {
-            'id': user.id,
-            'first_name': user.first_name,
-            'last_name': user.last_name,
-            'email': user.email
-        }
+
+        try:
+            updated_user = facade.update_user(
+                user_id,
+                first_name=data.get('first_name'),
+                last_name=data.get('last_name'),
+                email=data.get('email')
+            )
+            return updated_user
+
+        except ValueError as e:
+            api.abort(400, str(e))
+        except Exception as e:
+            api.abort(500, f"An error occurred: {str(e)}")
