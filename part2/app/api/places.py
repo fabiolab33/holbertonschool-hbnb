@@ -1,4 +1,6 @@
+# app/api/places.py
 from flask_restx import Namespace, Resource, fields
+from flask import request
 from flask import current_app
 
 api = Namespace("Places", description="Place operations")
@@ -8,91 +10,92 @@ place_model = api.model('Place', {
     'title': fields.String(required=True),
     'description': fields.String(required=True),
     'price': fields.Float(required=True),
-    'latitude': fields.Float,
-    'longitude': fields.Float,
-    'owner_id': fields.String
+    'latitude': fields.Float(),
+    'longitude': fields.Float(),
+    'owner_id': fields.String(required=True),
+    'amenities': fields.List(fields.String),  # lista de IDs de amenities
 })
 
 @api.route("/")
 class PlaceList(Resource):
     @api.marshal_list_with(place_model)
     def get(self):
-        places = facade.list_places()
-        result = []
-        for p in places:
-            result.append({
-                'id': p.id,
-                'title': p.title,
-                'description': p.description,
-                'price': p.price,
-                'latitude': p.latitude,
-                'longitude': p.longitude,
-                'owner_id': p.owner_id
-            })
-        return result
+        """List all places"""
+        return facade.list_places()
 
-    @api.expect(place_model, validate=True)
+    @api.expect(place_model)
     @api.marshal_with(place_model, code=201)
     def post(self):
-        data = request.get_json()
+        """Create a new place"""
+        data = request.json
+
+        # Basic validations
+        if data['price'] < 0:
+            api.abort(400, "Price must be a positive number")
+        if data.get('latitude') is not None and not (-90 <= data['latitude'] <= 90):
+            api.abort(400, "Latitude must be between -90 and 90")
+        if data.get('longitude') is not None and not (-180 <= data['longitude'] <= 180):
+            api.abort(400, "Longitude must be between -180 and 180")
+
+        # Validate that owner exists
+        owner = facade.user_repo.get(data['owner_id'])
+        if owner is None:
+            api.abort(400, "Owner user not found")
+
         place = facade.create_place(
-            title=data.get('title'),
-            description=data.get('description'),
-            price=data.get('price'),
+            title=data['title'],
+            description=data['description'],
+            price=data['price'],
             latitude=data.get('latitude'),
             longitude=data.get('longitude'),
-            owner_id=data.get('owner_id')
+            owner_id=data['owner_id']
         )
-        return {
-            'id': place.id,
-            'title': place.title,
-            'description': place.description,
-            'price': place.price,
-            'latitude': place.latitude,
-            'longitude': place.longitude,
-            'owner_id': place.owner_id
-        }, 201
+
+        # Associate amenities if provided
+        amenity_ids = data.get('amenities', [])
+        for amenity_id in amenity_ids:
+            amenity = facade.amenity_repo.get(amenity_id)
+            if amenity:
+                place.amenities.append(amenity)
+
+        return place, 201
 
 @api.route("/<string:place_id>")
-class PlaceResource(Resource):
+class PlaceDetail(Resource):
     @api.marshal_with(place_model)
     def get(self, place_id):
+        """Retrieve a single place by ID"""
         place = facade.place_repo.get(place_id)
-        if not place:
+        if place is None:
             api.abort(404, "Place not found")
-        return {
-            'id': place.id,
-            'title': place.title,
-            'description': place.description,
-            'price': place.price,
-            'latitude': place.latitude,
-            'longitude': place.longitude,
-            'owner_id': place.owner_id
-        }
+        return place
 
-    @api.expect(place_model, validate=True)
+    @api.expect(place_model)
     @api.marshal_with(place_model)
     def put(self, place_id):
+        """Update an existing place"""
         place = facade.place_repo.get(place_id)
-        if not place:
+        if place is None:
             api.abort(404, "Place not found")
-        data = request.get_json()
-        facade.place_repo.update(
-            place_id,
-            title=data.get('title', place.title),
-            description=data.get('description', place.description),
-            price=data.get('price', place.price),
-            latitude=data.get('latitude', place.latitude),
-            longitude=data.get('longitude', place.longitude),
-            owner_id=data.get('owner_id', place.owner_id)
-        )
-        updated = facade.place_repo.get(place_id)
-        return {
-            'id': updated.id,
-            'title': updated.title,
-            'description': updated.description,
-            'price': updated.price,
-            'latitude': updated.latitude,
-            'longitude': updated.longitude,
-            'owner_id': updated.owner_id
-        }
+        data = request.json
+
+        # Basic validations
+        if 'price' in data and data['price'] < 0:
+            api.abort(400, "Price must be a positive number")
+        if 'latitude' in data and not (-90 <= data['latitude'] <= 90):
+            api.abort(400, "Latitude must be between -90 and 90")
+        if 'longitude' in data and not (-180 <= data['longitude'] <= 180):
+            api.abort(400, "Longitude must be between -180 and 180")
+
+        # Update basic attributes
+        updated_place = facade.place_repo.update(place_id, **data)
+
+        # Update amenities if provided
+        if 'amenities' in data:
+            updated_place.amenities = []
+            for amenity_id in data['amenities']:
+                amenity = facade.amenity_repo.get(amenity_id)
+                if amenity:
+                    updated_place.amenities.append(amenity)
+
+        return updated_place
