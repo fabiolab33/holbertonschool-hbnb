@@ -15,12 +15,12 @@ def create_app():
         doc='/api/docs'
     )
 
-    # Import and initialize facade
+    # Import and initialize facade FIRST
     from app.business.facade import HBnBFacade
     global facade
     facade = HBnBFacade()
 
-    # Import namespaces
+    # Import namespaces AFTER facade is initialized
     from app.api.users import api as users_ns
     from app.api.places import api as places_ns
     from app.api.reviews import api as reviews_ns
