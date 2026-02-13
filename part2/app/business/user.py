@@ -32,13 +32,6 @@ class User(BaseModel):
                 setattr(self, key, value)
         self.save()
 
-    def to_dict(self):
-        """Return dictionary representation without password"""
-        data = super().to_dict()
-        data.update({
-            'first_name': self.first_name,
-            'last_name': self.last_name,
-            'email': self.email,
-            'is_admin': self.is_admin
-        })
-        return data
+     def delete(self):
+        """Delete the user (implementation depends on repository)"""
+        pass
