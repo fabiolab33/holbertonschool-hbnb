@@ -1,0 +1,27 @@
+# Core Flask
+Flask==2.3.2
+flask-restx==1.1.0
+Werkzeug==2.3.6
+
+Flask==2.3.2
+flask-restx==1.1.0
+Werkzeug==2.3.6
+
+# Authentication & Security
+flask-jwt-extended==4.5.2
+flask-bcrypt==1.0.1
+
+# Database
+flask-sqlalchemy==3.0.5
+sqlalchemy==2.0.20
+flask-migrate==4.0.5
+
+# Database Drivers
+pymysql==1.1.0
+
+# Environment Variables
+python-dotenv==1.0.0
+
+# Testing
+pytest==7.4.0
+pytest-cov==4.1.0
