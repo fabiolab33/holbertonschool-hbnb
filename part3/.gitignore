@@ -1,0 +1,30 @@
+# Environment variables
+.env
+.env.local
+
+# SQLite databases
+*.db
+instance/
+!instance/.gitkeep
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+
+# Testing
+htmlcov/
+.coverage
+.pytest_cache/
+
+# Logs
+*.log
