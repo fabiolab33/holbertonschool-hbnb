@@ -1,6 +1,7 @@
 # app/api/users.py
 from flask_restx import Namespace, Resource, fields
 from flask import request
+from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 
 api = Namespace("users", description="User operations")
 
@@ -30,10 +31,14 @@ user_update_model = api.model('UserUpdate', {
 
 @api.route("/")
 class UserList(Resource):
-    @api.doc('list_users')
+    @api.doc('list_users', security='Bearer Auth')
+    @jwt_required()
     @api.marshal_list_with(user_model)
     def get(self):
-        """List all users"""
+        """
+        List all users (Protected endpoint).
+        Requires valid JWT token.
+        """
         from app import facade
         users = facade.list_users()
         return [user.to_dict() for user in users], 200
@@ -42,7 +47,10 @@ class UserList(Resource):
     @api.expect(user_input_model, validate=True)
     @api.marshal_with(user_model, code=201)
     def post(self):
-        """Create a new user"""
+        """
+        Create a new user (Public endpoint for registration).
+        No authentication required.
+        """
         from app import facade
 
         try:
@@ -75,10 +83,14 @@ class UserList(Resource):
 @api.route("/<string:user_id>")
 @api.param('user_id', 'The user unique identifier')
 class UserResource(Resource):
-    @api.doc('get_user')
+    @api.doc('get_user', security='Bearer Auth')
+    @jwt_required()
     @api.marshal_with(user_model)
     def get(self, user_id):
-        """Get a user by ID"""
+        """
+        Get a user by ID (Protected endpoint).
+        Requires valid JWT token.
+        """
         from app import facade
 
         user = facade.get_user(user_id)
@@ -88,25 +100,43 @@ class UserResource(Resource):
 # Password automatically excluded by to_dict()
         return user.to_dict(), 200
     
-    @api.doc('update_user')
-    @api.expect(user_model, validate=True)
+    @api.doc('update_user', security='Bearer Auth')
+    @jwt_required()
+    @api.expect(user_update_model, validate=True)
     @api.marshal_with(user_model)
     def put(self, user_id):
-        """Update a user"""
+        """
+        Update a user information (Protected endpoint).
+        Users can only update their own profile unless they are admin.
+        Requires valid JWT token.
+        """
         from app import facade
 
         try:
+            # Get current user from JWT
+            current_user_id = get_jwt_identity()
+            claims = get_jwt()
+            is_admin = claims.get('is_admin', False)
+            
+            # Check if user can update this profile
+            if current_user_id != user_id and not is_admin:
+                return {'message': 'You can only update your own profile'}, 403
+            
             user = facade.get_user(user_id)
             if not user:
                 return {'message': 'User not found'}, 404
             
             data = request.get_json()
-
-# Check email uniqueness if email is being updated
+            
+            # Check email uniqueness if email is being updated
             if 'email' in data and data['email'] != user.email:
                 existing_user = facade.get_user_by_email(data['email'])
                 if existing_user:
                     return {'message': 'Email already registered'}, 400
+            
+            # Prevent non-admin users from changing admin status
+            if 'is_admin' in data and not is_admin:
+                return {'message': 'Only admins can change admin status'}, 403
             
             # Update user (password will be hashed if provided)
             updated_user = facade.update_user(user_id, **data)

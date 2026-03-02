@@ -19,7 +19,8 @@ def create_app(config_name=None):
     app.config.from_object(config_class)
 
     print(f"Loading configuration: {config_class.__name__}")
-
+    print(f"JWT Secret Key configured: {'Yes' if app.config.get('JWT_SECRET_KEY') else 'No'}")
+    
     # Initialize extensions
     db.init_app(app)
     bcrypt.init_app(app)
@@ -31,24 +32,58 @@ def create_app(config_name=None):
         version='1.0',
         title='HBnB Evolution API',
         description='RESTful API for HBnB application with authentication',
-        doc='/api/docs'
+        doc='/api/docs',
+        authorizations={
+            'Bearer Auth': {
+                'type': 'apiKey',
+                'in': 'header',
+                'name': 'Authorization',
+                'description': 'Add a JWT token to the header with ** Bearer &lt;JWT&gt; ** token to authorize'
+            }
+        },
+        security='Bearer Auth'
     )
 
     # Import namespaces
+    from app.api.auth import api as auth_ns
     from app.api.users import api as users_ns
     from app.api.places import api as places_ns
     from app.api.reviews import api as reviews_ns
     from app.api.amenities import api as amenities_ns
 
     # Register namespaces
+    api.add_namespace(auth_ns, path='/api/auth')
     api.add_namespace(users_ns, path='/api/users')
     api.add_namespace(places_ns, path='/api/places')
     api.add_namespace(reviews_ns, path='/api/reviews')
     api.add_namespace(amenities_ns, path='/api/amenities')
     
+    # Register JWT error handlers
+    register_jwt_handlers(jwt)
+    
+    # Register general error handlers
     register_error_handlers(app)
 
     return app
+
+def register_jwt_handlers(jwt):
+    """Register JWT error handlers."""
+    
+    @jwt.expired_token_loader
+    def expired_token_callback(jwt_header, jwt_payload):
+        return {'message': 'Token has expired'}, 401
+    
+    @jwt.invalid_token_loader
+    def invalid_token_callback(error):
+        return {'message': 'Invalid token'}, 401
+    
+    @jwt.unauthorized_loader
+    def missing_token_callback(error):
+        return {'message': 'Authorization token is missing'}, 401
+    
+    @jwt.revoked_token_loader
+    def revoked_token_callback(jwt_header, jwt_payload):
+        return {'message': 'Token has been revoked'}, 401
 
 def register_error_handlers(app):
     """Register custom error handlers."""
