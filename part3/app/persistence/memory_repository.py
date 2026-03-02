@@ -23,6 +23,13 @@ class InMemoryRepository:
     def get(self, obj_id):
         """Retrieve an object by ID"""
         return self.storage.get(obj_id)
+    
+    def get_by_email(self, email):
+        """Get user by email (for User entities)"""
+        for obj in self.storage.values():
+            if hasattr(obj, 'email') and obj.email == email:
+                return obj
+        return None
 
     def list(self):
         """List all objects"""
@@ -33,9 +40,13 @@ class InMemoryRepository:
         obj = self.storage.get(obj_id)
         if not obj:
             return None
-        
+ # Handle password separately if it's a User
+        if 'password' in kwargs and hasattr(obj, 'hash_password'):
+            obj.hash_password(kwargs.pop('password')) 
+
+# Update other attributes        
         for key, value in kwargs.items():
-            if hasattr(obj, key):
+            if hasattr(obj, key) and key not in ['id', 'created_at', '_password_hash']:
                 setattr(obj, key, value)
         
         obj.updated_at = datetime.utcnow()

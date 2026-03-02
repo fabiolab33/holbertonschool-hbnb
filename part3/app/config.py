@@ -45,9 +45,11 @@ class ProductionConfig(Config):
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
         'mysql+pymysql://username:password@localhost/hbnb_prod'
     
-    if not os.environ.get('SECRET_KEY'):
-        raise ValueError("SECRET_KEY environment variable must be set in production")
-    
+    @classmethod
+    def init_app(cls, app):
+        if not os.environ.get('SECRET_KEY'):
+            raise ValueError("SECRET_KEY must be set")
+        
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
 
 

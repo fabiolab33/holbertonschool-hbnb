@@ -9,7 +9,8 @@ user_model = api.model('User', {
     'id': fields.String(readonly=True, description='User unique identifier'),
     'first_name': fields.String(required=True, description='User first name'),
     'last_name': fields.String(required=True, description='User last name'),
-    'email': fields.String(required=True, description='User email address')
+    'email': fields.String(required=True, description='User email address'),
+    'is_admin': fields.Boolean(description='Admin status', default=False)
 })
 
 # User input model (includes password for creation)
@@ -17,7 +18,14 @@ user_input_model = api.model('UserInput', {
     'first_name': fields.String(required=True, description='User first name'),
     'last_name': fields.String(required=True, description='User last name'),
     'email': fields.String(required=True, description='User email address'),
-    'password': fields.String(required=True, description='User password')
+    'password': fields.String(required=True, description='User password (will be hashed)')
+})
+
+user_update_model = api.model('UserUpdate', {
+    'first_name': fields.String(description='User first name'),
+    'last_name': fields.String(description='User last name'),
+    'email': fields.String(description='User email address'),
+    'password': fields.String(description='New password (will be hashed)')
 })
 
 @api.route("/")
@@ -28,67 +36,86 @@ class UserList(Resource):
         """List all users"""
         from app import facade
         users = facade.list_users()
-        return users
+        return [user.to_dict() for user in users], 200
 
     @api.doc('create_user')
     @api.expect(user_input_model, validate=True)
     @api.marshal_with(user_model, code=201)
-    @api.response(201, 'User created successfully')
-    @api.response(400, 'Invalid input or email already exists')
     def post(self):
         """Create a new user"""
         from app import facade
-        data = request.get_json()
 
         try:
+            data = request.get_json()
+              # Validate required fields
+            if not data.get('password'):
+                return {'message': 'Password is required'}, 400
+            
+            # Check email uniqueness
+            existing_user = facade.get_user_by_email(data['email'])
+            if existing_user:
+                return {'message': 'Email already registered'}, 400
+            
+            # Create user (password will be hashed in User.__init__)
             user = facade.create_user(
                 first_name=data['first_name'],
                 last_name=data['last_name'],
                 email=data['email'],
-                password=data['password']
+                password=data['password']  # This will be hashed
             )
-            return user, 201
-
+            
+            # Return user data WITHOUT password
+            return user.to_dict(), 201
+            
         except ValueError as e:
-            api.abort(400, str(e))
+            return {'message': str(e)}, 400
         except Exception as e:
-            api.abort(500, f"An error occurred: {str(e)}")
-
+            return {'message': f'Error creating user: {str(e)}'}, 500
+        
 @api.route("/<string:user_id>")
 @api.param('user_id', 'The user unique identifier')
 class UserResource(Resource):
     @api.doc('get_user')
     @api.marshal_with(user_model)
-    @api.response(404, 'User not found')
     def get(self, user_id):
         """Get a user by ID"""
         from app import facade
+
         user = facade.get_user(user_id)
         if not user:
-            api.abort(404, "User not found")
-        return user
+            return {'message': 'User not found'}, 404
 
+# Password automatically excluded by to_dict()
+        return user.to_dict(), 200
+    
     @api.doc('update_user')
     @api.expect(user_model, validate=True)
     @api.marshal_with(user_model)
-    @api.response(200, 'User updated successfully')
-    @api.response(400, 'Invalid input')
-    @api.response(404, 'User not found')
     def put(self, user_id):
         """Update a user"""
         from app import facade
-        data = request.get_json()
 
         try:
-            updated_user = facade.update_user(
-                user_id,
-                first_name=data.get('first_name'),
-                last_name=data.get('last_name'),
-                email=data.get('email')
-            )
-            return updated_user
+            user = facade.get_user(user_id)
+            if not user:
+                return {'message': 'User not found'}, 404
+            
+            data = request.get_json()
 
+# Check email uniqueness if email is being updated
+            if 'email' in data and data['email'] != user.email:
+                existing_user = facade.get_user_by_email(data['email'])
+                if existing_user:
+                    return {'message': 'Email already registered'}, 400
+            
+            # Update user (password will be hashed if provided)
+            updated_user = facade.update_user(user_id, **data)
+            
+            # Return user data WITHOUT password
+            return updated_user.to_dict(), 200
+            
         except ValueError as e:
-            api.abort(400, str(e))
+            return {'message': str(e)}, 400
         except Exception as e:
-            api.abort(500, f"An error occurred: {str(e)}")
+            return {'message': f'Error updating user: {str(e)}'}, 500
+

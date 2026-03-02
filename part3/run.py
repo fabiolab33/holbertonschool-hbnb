@@ -1,15 +1,4 @@
-# part2/run.py
-from app import create_app
-
-app = create_app()
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5001, debug=True)
-
-"""
-Application entry point for HBnB Evolution API.
-Runs the Flask development server with the specified configuration.
-"""
+# part3/run.py
 import os
 from app import create_app
 
