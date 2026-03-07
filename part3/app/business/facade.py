@@ -58,16 +58,7 @@ class HBnBFacade:
     
     def update_place(self, place_id, **kwargs):
         """Update a place"""
-        place = self.place_repo.get(place_id)
-        if not place:
-            return None
-        
-        for key, value in kwargs.items():
-            if hasattr(place, key) and key not in ['id', 'created_at', 'owner_id']:
-                setattr(place, key, value)
-        
-        place.save()
-        return self.place_repo.update(place_id, place)
+        return self.place_repo.update(place_id, **kwargs)
     
     # ----- REVIEW OPERATIONS -----
     def create_review(self, rating, comment, user_id, place_id):
@@ -91,11 +82,11 @@ class HBnBFacade:
     
     def get_review(self, review_id):
         """Get a review by ID"""
-        return self.repo.get_review(review_id)
+        return self.review_repo.get(review_id)
 
     def list_reviews(self):
         """List all reviews"""
-        return self.repo.list_reviews()
+        return self.review_repo.list()
     
     def get_reviews_by_place(self, place_id):
         """Get all reviews for a specific place"""
@@ -106,16 +97,7 @@ class HBnBFacade:
 
     def update_review(self, review_id, **kwargs):
         """Update a review"""
-        review = self.review_repo.get(review_id)
-        if not review:
-            return None
-        
-        for key, value in kwargs.items():
-            if hasattr(review, key) and key not in ['id', 'created_at', 'user_id', 'place_id']:
-                setattr(review, key, value)
-        
-        review.save()
-        return self.review_repo.update(review_id, review)
+        return self.review_repo.update(review_id, **kwargs)
 
     def delete_review(self, review_id):
         """Delete a review"""
@@ -151,17 +133,7 @@ class HBnBFacade:
     
     def update_amenity(self, amenity_id, **kwargs):
         """Update an amenity"""
-        amenity = self.amenity_repo.get(amenity_id)
-        if not amenity:
-            return None
-        
-        for key, value in kwargs.items():
-            if hasattr(amenity, key) and key not in ['id', 'created_at']:
-                setattr(amenity, key, value)
-        
-        amenity.save()
-        return self.amenity_repo.update(amenity_id, amenity)
-
+        return self.amenity_repo.update(amenity_id, **kwargs)
 
 # Global facade instance
 facade = HBnBFacade()

@@ -21,20 +21,20 @@ place_model = api.model('Place', {
 })
 
 place_input_model = api.model('PlaceInput', {
-    'title': fields.String(required=True, description='Place title'),
+    'title': fields.String(required=True, description='Place title (max 100 chars)'),
     'description': fields.String(required=True, description='Place description'),
-    'price': fields.Float(required=True, description='Price per night'),
-    'latitude': fields.Float(description='Latitude coordinate'),
-    'longitude': fields.Float(description='Longitude coordinate'),
+    'price': fields.Float(required=True, description='Price per night (must be positive)'),
+    'latitude': fields.Float(description='Latitude (-90 to 90)'),
+    'longitude': fields.Float(description='Longitude (-180 to 180)'),
     'amenities': fields.List(fields.String, description='List of amenity IDs')
 })
 
 place_update_model = api.model('PlaceUpdate', {
-    'title': fields.String(description='Place title'),
+    'title': fields.String(description='Place title (max 100 chars)'),
     'description': fields.String(description='Place description'),
-    'price': fields.Float(description='Price per night'),
-    'latitude': fields.Float(description='Latitude coordinate'),
-    'longitude': fields.Float(description='Longitude coordinate')
+    'price': fields.Float(description='Price per night (must be positive)'),
+    'latitude': fields.Float(description='Latitude (-90 to 90)'),
+    'longitude': fields.Float(description='Longitude (-180 to 180)')
 })
 
 
@@ -45,6 +45,9 @@ class PlaceList(Resource):
     def get(self):
         """
         List all places (Public endpoint - no authentication required).
+
+        Returns basic place information without related data.
+        Use GET /places/{id} to get full details including owner and amenities.
         """
         from app import facade
         places = facade.list_places()
@@ -57,21 +60,34 @@ class PlaceList(Resource):
     def post(self):
         """
         Create a new place (Protected endpoint).
-        Only authenticated users can create places.
-        The authenticated user becomes the owner.
+
+        Requirements:
+        - User must be authenticated
+        - Title is required (max 100 characters)
+        - Price must be positive
+        - Latitude must be between -90 and 90
+        - Longitude must be between -180 and 180
+        
+        The authenticated user automatically becomes the owner.
         """
         from app import facade
         
         try:
             # Get current user from JWT
             current_user_id = get_jwt_identity()
-            
             data = request.get_json()
+            
+            # Validate required fields
+            if not data.get('title'):
+                return {'message': 'Title is required'}, 400
+            
+            if not data.get('price'):
+                return {'message': 'Price is required'}, 400
             
             # Create place with current user as owner
             place = facade.create_place(
                 title=data['title'],
-                description=data['description'],
+                description=data.get('description', ''),
                 price=data['price'],
                 latitude=data.get('latitude'),
                 longitude=data.get('longitude'),
@@ -79,11 +95,13 @@ class PlaceList(Resource):
             )
             
             # Add amenities if provided
-            if 'amenities' in data:
+            if 'amenities' in data and data['amenities']:
                 for amenity_id in data['amenities']:
                     amenity = facade.get_amenity(amenity_id)
                     if amenity:
                         place.add_amenity(amenity)
+                    else:
+                        return {'message': f'Amenity {amenity_id} not found'}, 404
             
             return place.to_dict(), 201
             
@@ -97,11 +115,15 @@ class PlaceList(Resource):
 @api.param('place_id', 'The place identifier')
 class PlaceResource(Resource):
     @api.doc('get_place')
-    @api.marshal_with(place_model)
     def get(self, place_id):
         """
-        Get a place by ID (Public endpoint - no authentication required).
-        Returns place with extended attributes (owner, amenities, reviews).
+        Get a place information (Public endpoint).
+        
+        Returns complete place data including:
+        - Basic place information
+        - Owner details (without password)
+        - List of amenities
+        - List of reviews
         """
         from app import facade
         
@@ -112,10 +134,11 @@ class PlaceResource(Resource):
         # Return extended place information
         owner = facade.get_user(place.owner_id)
         
+        # BUILD RESPONSE WITH RELATED DATA
         place_data = place.to_dict()
         place_data['owner'] = owner.to_dict() if owner else None
-        place_data['amenities'] = [a.to_dict() for a in place.amenities]
-        place_data['reviews'] = [r.to_dict() for r in place.reviews]
+        place_data['amenities'] = [amenity.to_dict() for amenity in place.amenities]
+        place_data['reviews'] = [review.to_dict() for review in place.reviews]
         
         return place_data, 200
 
@@ -144,6 +167,10 @@ class PlaceResource(Resource):
             
             data = request.get_json()
             
+            # Prevent owner_id change
+            if 'owner_id' in data:
+                return {'message': 'Cannot change place owner'}, 400
+            
             # Update place
             updated_place = facade.update_place(place_id, **data)
             return updated_place.to_dict(), 200
@@ -152,33 +179,3 @@ class PlaceResource(Resource):
             return {'message': str(e)}, 400
         except Exception as e:
             return {'message': f'Error updating place: {str(e)}'}, 500
-
-    @api.doc('delete_place', security='Bearer Auth')
-    @jwt_required()
-    def delete(self, place_id):
-        """
-        Delete a place (Protected endpoint).
-        Only the owner or admin can delete a place.
-        """
-        from app import facade
-        
-        try:
-            # Get current user from JWT
-            current_user_id = get_jwt_identity()
-            claims = get_jwt()
-            is_admin = claims.get('is_admin', False)
-            
-            place = facade.get_place(place_id)
-            if not place:
-                return {'message': 'Place not found'}, 404
-            
-            # Check ownership or admin status
-            if place.owner_id != current_user_id and not is_admin:
-                return {'message': 'You can only delete your own places'}, 403
-            
-            # Delete place (implement in facade)
-            # Note: This will be implemented when we add delete_place to facade
-            return {'message': 'Place deletion not yet implemented'}, 501
-            
-        except Exception as e:
-            return {'message': f'Error deleting place: {str(e)}'}, 500
