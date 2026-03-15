@@ -179,3 +179,41 @@ class PlaceResource(Resource):
             return {'message': str(e)}, 400
         except Exception as e:
             return {'message': f'Error updating place: {str(e)}'}, 500
+    @api.doc('delete_place', security='Bearer Auth')
+    @jwt_required()
+    def delete(self, place_id):
+        """
+        Delete a place (Protected endpoint).
+        
+        Requirements:
+        - User must be authenticated
+        - Only the owner can delete their place
+        - Or admin can delete any place
+        - All associated reviews will be deleted
+        """
+        from app import facade
+        
+        try:
+            # Get current user from JWT
+            current_user_id = get_jwt_identity()
+            claims = get_jwt()
+            is_admin = claims.get('is_admin', False)
+            
+            place = facade.get_place(place_id)
+            if not place:
+                return {'message': 'Place not found'}, 404
+            
+            # Check ownership (or admin)
+            if place.owner_id != current_user_id and not is_admin:
+                return {'message': 'You can only delete your own places'}, 403
+            
+            # Delete place (will cascade delete reviews)
+            success = facade.delete_place(place_id)
+            
+            if not success:
+                return {'message': 'Failed to delete place'}, 500
+            
+            return '', 204
+            
+        except Exception as e:
+            return {'message': f'Error deleting place: {str(e)}'}, 500
