@@ -60,6 +60,26 @@ class HBnBFacade:
         """Update a place"""
         return self.place_repo.update(place_id, **kwargs)
     
+    def delete_place(self, place_id):
+        """Delete a place and all its associated reviews."""
+        place = self.place_repo.get(place_id)
+        if not place:
+            return False
+        
+        # Delete all reviews for this place
+        reviews_to_delete = place.reviews[:]
+        for review in reviews_to_delete:
+            self.delete_review(review.id)
+        
+        # Remove from owner's places list
+        owner = self.user_repo.get(place.owner_id)
+        if owner and place in owner.places:
+            owner.places.remove(place)
+        
+        # Delete the place
+        self.place_repo.delete(place_id)
+        return True
+
     # ----- REVIEW OPERATIONS -----
     def create_review(self, rating, comment, user_id, place_id):
         """Create a new review."""
