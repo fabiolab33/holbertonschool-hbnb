@@ -32,12 +32,16 @@ class HBnBFacade:
             self.place_repo = SQLAlchemyRepository(PlaceModel)
             self.review_repo = SQLAlchemyRepository(ReviewModel)
             self.amenity_repo = SQLAlchemyRepository(AmenityModel)
+
+            print("✅ Using SQLAlchemy repository")
         else:
             # In-memory repositories (current implementation)
             self.user_repo = InMemoryRepository()
             self.place_repo = InMemoryRepository()
             self.review_repo = InMemoryRepository()
             self.amenity_repo = InMemoryRepository()
+
+            print("✅ Using InMemory repository")
 
     # ----- USER OPERATIONS -----
     def create_user(self, first_name, last_name, email, password):
@@ -217,7 +221,7 @@ class HBnBFacade:
         """Create a new amenity"""
         if self.use_database:
             from app.models import Amenity as AmenityModel
-            amenity = Amenity(name=name, description=description)
+            amenity = AmenityModel(name=name, description=description)
         else:
             amenity = Amenity(name, description)
 
