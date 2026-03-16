@@ -156,13 +156,15 @@ class PlaceResource(Resource):
         try:
             # Get current user from JWT
             current_user_id = get_jwt_identity()
-            
+            claims = get_jwt()
+            is_admin = claims.get('is_admin', False)
+
             place = facade.get_place(place_id)
             if not place:
                 return {'message': 'Place not found'}, 404
             
             # Check ownership
-            if place.owner_id != current_user_id:
+            if place.owner_id != current_user_id and not is_admin:
                 return {'message': 'You can only update your own places'}, 403
             
             data = request.get_json()

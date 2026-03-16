@@ -1,6 +1,7 @@
 # app/api/amenities.py
 from flask_restx import Namespace, Resource, fields
 from flask import request
+from flask_jwt_extended import jwt_required, get_jwt
 
 api = Namespace("amenities", description="Amenity operations")
 
@@ -19,16 +20,26 @@ class AmenityList(Resource):
         """List all amenities"""
         from app import facade
         amenities = facade.list_amenities()
-        return amenities
+        return amenities, 200
 
-    @api.doc('create_amenity')
+    @api.doc('create_amenity', security='Bearer Auth')
+    @jwt_required()
     @api.expect(amenity_model, validate=True)
     @api.marshal_with(amenity_model, code=201)
     @api.response(201, 'Amenity created successfully')
     @api.response(400, 'Invalid input')
+    @api.response(403, 'Admin access required')
     def post(self):
         """Create a new amenity"""
         from app import facade
+
+        # Check if user is admin
+        claims = get_jwt()
+        is_admin = claims.get('is_admin', False)
+        
+        if not is_admin:
+            return {'message': 'Admin privileges required'}, 403
+        
         data = request.get_json()
 
         try:
@@ -57,15 +68,25 @@ class AmenityResource(Resource):
             api.abort(404, "Amenity not found")
         return amenity
 
-    @api.doc('update_amenity')
+    @api.doc('update_amenity', security='Bearer Auth')
+    @jwt_required()
     @api.expect(amenity_model, validate=True)
     @api.marshal_with(amenity_model)
     @api.response(200, 'Amenity updated successfully')
     @api.response(400, 'Invalid input')
+    @api.response(403, 'Admin access required')
     @api.response(404, 'Amenity not found')
     def put(self, amenity_id):
         """Update an amenity"""
         from app import facade
+
+        # Check if user is admin
+        claims = get_jwt()
+        is_admin = claims.get('is_admin', False)
+        
+        if not is_admin:
+            return {'message': 'Admin privileges required'}, 403
+        
         data = request.get_json()
 
         try:
