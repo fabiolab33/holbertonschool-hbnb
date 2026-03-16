@@ -1,7 +1,7 @@
 # app/api/reviews.py
 from flask_restx import Namespace, Resource, fields
 from flask import request
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import get_jwt, jwt_required, get_jwt_identity
 
 api = Namespace("reviews", description="Review operations")
 
@@ -110,6 +110,8 @@ class ReviewResource(Resource):
         try:
             # Get current user from JWT
             current_user_id = get_jwt_identity()
+            claims = get_jwt()
+            is_admin = claims.get('is_admin', False)
 
             # Check if review exists
             review = facade.get_review(review_id)
@@ -117,7 +119,7 @@ class ReviewResource(Resource):
                 return {'message': 'Review not found'}, 404
 
             # Check ownership
-            if review.user_id != current_user_id:
+            if review.user_id != current_user_id and not is_admin:
                 return {'message': 'You can only update your own reviews'}, 403
             
             data = request.get_json()
@@ -140,14 +142,16 @@ class ReviewResource(Resource):
         try:
              # Get current user from JWT
             current_user_id = get_jwt_identity()
-            
+            claims = get_jwt()
+            is_admin = claims.get('is_admin', False)
+
             # Check if review exists
             review = facade.get_review(review_id)
             if not review:
                 return {'message': 'Review not found'}, 404
 
             # Check ownership
-            if review.user_id != current_user_id:
+            if review.user_id != current_user_id and not is_admin:
                 return {'message': 'You can only delete your own reviews'}, 403
 
             # Delete review through facade
