@@ -14,7 +14,7 @@ class SQLAlchemyRepository:
         self.model = model
 
     def create(self, obj):
-         """
+        """
         Create a new object in the database.
         
         Args:
@@ -38,7 +38,7 @@ class SQLAlchemyRepository:
         Returns:
             Object or None if not found
         """
-        return self.model.query.get(obj_id)
+        return db.session.get(self.model, obj_id)
     
     def get_by_email(self, email):
         """
@@ -50,7 +50,7 @@ class SQLAlchemyRepository:
         Returns:
             User object or None
         """
-        return self.model.query.filter_by(email=email).first()
+        return db.session.query(self.model).filter_by(email=email).first()
 
     def list(self):
         """
@@ -59,9 +59,9 @@ class SQLAlchemyRepository:
         Returns:
             List of all objects
         """
-        return self.model.query.all()
+        return db.session.query(self.model).all()
 
-    def update(self, obj):
+    def update(self, obj_id, **kwargs):
         """
         Update an object's attributes.
         
@@ -75,6 +75,7 @@ class SQLAlchemyRepository:
         obj = self.get(obj_id)
         if not obj:
             return None
+        
         # Handle password separately if it's a User model
         if 'password' in kwargs and hasattr(obj, 'set_password'):
             obj.set_password(kwargs.pop('password'))
@@ -92,7 +93,7 @@ class SQLAlchemyRepository:
         db.session.refresh(obj)
         return obj
     
-    def delete(self, obj):
+    def delete(self, obj_id):
         """
         Delete an object by ID.
         
