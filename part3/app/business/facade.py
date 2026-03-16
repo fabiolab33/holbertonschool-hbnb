@@ -1,23 +1,57 @@
 # app/business/facade.py
 from app.persistence.memory_repository import InMemoryRepository
+from app.persistence.sqlalchemy_repository import SQLAlchemyRepository
 from app.business.user import User
 from app.business.place import Place
 from app.business.review import Review
 from app.business.amenity import Amenity
+import os
 
 class HBnBFacade:
     """Facade for managing business logic operations using SQLAlchemy repository."""
 
-    def __init__(self):
-        self.user_repo = InMemoryRepository()
-        self.place_repo = InMemoryRepository()
-        self.review_repo = InMemoryRepository()
-        self.amenity_repo = InMemoryRepository()
+    def __init__(self, use_database=False):
+        """
+        Initialize the facade with either in-memory or database repositories.
+        
+        Args:
+            use_database: If True, use SQLAlchemy repositories. 
+                         If False, use in-memory repositories.
+        """
+        self.use_database = use_database
+        
+        if use_database:
+            # SQLAlchemy repositories (requires models to be mapped)
+            # This will be activated in Task 6 after model mapping
+            from app.models import User as UserModel
+            from app.models import Place as PlaceModel
+            from app.models import Review as ReviewModel
+            from app.models import Amenity as AmenityModel
+
+            self.user_repo = SQLAlchemyRepository(UserModel)
+            self.place_repo = SQLAlchemyRepository(PlaceModel)
+            self.review_repo = SQLAlchemyRepository(ReviewModel)
+            self.amenity_repo = SQLAlchemyRepository(AmenityModel)
+        else:
+            # In-memory repositories (current implementation)
+            self.user_repo = InMemoryRepository()
+            self.place_repo = InMemoryRepository()
+            self.review_repo = InMemoryRepository()
+            self.amenity_repo = InMemoryRepository()
 
     # ----- USER OPERATIONS -----
     def create_user(self, first_name, last_name, email, password):
         """Create a new user with hashed password."""
-        user = User(first_name, last_name, email, password)
+        if self.use_database:
+            from app.models import User as UserModel
+            user = UserModel(
+                first_name=first_name,
+                last_name=last_name,
+                email=email
+            )
+            user.set_password(password)
+        else:
+            user = User(first_name, last_name, email, password)
         return self.user_repo.create(user)
     
     def get_user(self, user_id):
@@ -43,9 +77,24 @@ class HBnBFacade:
         if not owner:
             raise ValueError("Owner not found")
         
-        place = Place(title, description, price, latitude, longitude, owner_id)
+        if self.use_database:
+            from app.models import Place as PlaceModel
+            place = PlaceModel(
+                title=title,
+                description=description,
+                price=price,
+                latitude=latitude,
+                longitude=longitude,
+                owner_id=owner_id
+            )
+        else:
+            place = Place(title, description, price, latitude, longitude, owner_id)
+        
         created_place = self.place_repo.create(place)
-        owner.places.append(created_place)
+        
+        # Add to owner's places if using in-memory
+        if not self.use_database and hasattr(owner, 'places'):
+            owner.places.append(created_place)
         return created_place
 
     def get_place(self, place_id):
@@ -67,18 +116,22 @@ class HBnBFacade:
             return False
         
         # Delete all reviews for this place
-        reviews_to_delete = place.reviews[:]
-        for review in reviews_to_delete:
-            self.delete_review(review.id)
+        if self.use_database:
+            # With database, cascade delete should handle this
+            pass
+        else:
+            reviews_to_delete = place.reviews[:]
+            for review in reviews_to_delete:
+                self.delete_review(review.id)
         
         # Remove from owner's places list
-        owner = self.user_repo.get(place.owner_id)
-        if owner and place in owner.places:
-            owner.places.remove(place)
+        if not self.use_database:
+            owner = self.user_repo.get(place.owner_id)
+            if owner and hasattr(owner, 'places') and place in owner.places:
+                owner.places.remove(place)
         
         # Delete the place
-        self.place_repo.delete(place_id)
-        return True
+        return self.place_repo.delete(place_id)
 
     # ----- REVIEW OPERATIONS -----
     def create_review(self, rating, comment, user_id, place_id):
@@ -92,11 +145,25 @@ class HBnBFacade:
         if place.owner_id == user_id:
             raise ValueError("You cannot review your own place")
         
-        review = Review(rating, comment, user_id, place_id)
+        if self.use_database:
+            from app.models import Review as ReviewModel
+            review = ReviewModel(
+                rating=rating,
+                comment=comment,
+                user_id=user_id,
+                place_id=place_id
+            )
+        else:
+            review = Review(rating, comment, user_id, place_id)
+        
         created_review = self.review_repo.create(review)
         
-        user.reviews.append(created_review)
-        place.reviews.append(created_review)
+        # Add to lists if using in-memory
+        if not self.use_database:
+            if hasattr(user, 'reviews'):
+                user.reviews.append(created_review)
+            if hasattr(place, 'reviews'):
+                place.reviews.append(created_review)
         
         return created_review
     
@@ -113,7 +180,14 @@ class HBnBFacade:
         place = self.place_repo.get(place_id)
         if not place:
             return None
-        return place.reviews
+        
+        if self.use_database:
+            # Query reviews by place_id
+            from app.models import Review as ReviewModel
+            from app import db
+            return db.session.query(ReviewModel).filter_by(place_id=place_id).all()
+        else:
+            return place.reviews
 
     def update_review(self, review_id, **kwargs):
         """Update a review"""
@@ -125,22 +199,28 @@ class HBnBFacade:
         if not review:
             return False
         
-        user = self.user_repo.get(review.user_id)
-        place = self.place_repo.get(review.place_id)
+        if not self.use_database:
+            # In-memory: Remove from user and place lists
+            user = self.user_repo.get(review.user_id)
+            place = self.place_repo.get(review.place_id)
         
-        if user and review in user.reviews:
-            user.reviews.remove(review)
+            if user and hasattr(user, 'reviews') and review in user.reviews:
+                user.reviews.remove(review)
         
-        if place and review in place.reviews:
-            place.reviews.remove(review)
+            if place and hasattr(place, 'reviews') and review in place.reviews:
+                place.reviews.remove(review)
         
-        self.review_repo.delete(review_id)
-        return True
+        return self.review_repo.delete(review_id)
 
     # ----- AMENITY OPERATIONS -----
     def create_amenity(self, name, description):
         """Create a new amenity"""
-        amenity = Amenity(name, description)
+        if self.use_database:
+            from app.models import Amenity as AmenityModel
+            amenity = Amenity(name=name, description=description)
+        else:
+            amenity = Amenity(name, description)
+
         return self.amenity_repo.create(amenity)
 
     def get_amenity(self, amenity_id):
@@ -156,4 +236,5 @@ class HBnBFacade:
         return self.amenity_repo.update(amenity_id, **kwargs)
 
 # Global facade instance
-facade = HBnBFacade()
+USE_DATABASE = os.environ.get('USE_DATABASE', 'false').lower() == 'true'
+facade = HBnBFacade(use_database=USE_DATABASE)
