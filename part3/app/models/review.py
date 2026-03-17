@@ -12,8 +12,8 @@ class Review(BaseModel):
     
     rating = db.Column(db.Integer, nullable=False)
     comment = db.Column(db.Text, nullable=False)
-    user_id = db.Column(db.String(36), nullable=False)
-    place_id = db.Column(db.String(36), nullable=False)
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
+    place_id = db.Column(db.String(36), db.ForeignKey('places.id'), nullable=False)
     
     def __init__(self, rating, comment, user_id, place_id):
         """Initialize review with validation."""

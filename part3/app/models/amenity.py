@@ -12,6 +12,9 @@ class Amenity(BaseModel):
     
     name = db.Column(db.String(50), nullable=False, unique=True)
     description = db.Column(db.String(200), nullable=True)
+    
+    # Relationships
+    places = db.relationship('Place', secondary='place_amenity', back_populates='amenities', lazy=True)
         
     def __init__(self, name, description=None):
         """Initialize amenity."""
