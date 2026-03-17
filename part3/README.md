@@ -1,393 +1,401 @@
-# HBnB Evolution API - Part 2: Complete Implementation Guide
+# HBnB Evolution - Part 3: Authentication & Database Integration
 
-## Project Overview
+Complete implementation of authentication, authorization, and database persistence for the HBnB application.
 
-**Part 2** of the HBnB Evolution project focuses on implementing the **Business Logic** and **Presentation layers** of a RESTful API for an Airbnb-like application. This phase builds the foundation of the application using Flask and Flask-RESTX, implementing core CRUD operations, validations, and the Facade design pattern.
+## 📋 Table of Contents
 
-**Architecture:**
-- Presentation Layer (API endpoints)
-- Business Logic Layer (entities and validations)
-- Persistence Layer (in-memory repository)
+- [Overview](#overview)
+- [Features](#features)
+- [Project Structure](#project-structure)
+- [Setup & Installation](#setup--installation)
+- [Database](#database)
+- [API Documentation](#api-documentation)
+- [Architecture](#architecture)
+- [Tasks Completed](#tasks-completed)
 
 ---
 
-##  Project Structure
+## 🎯 Overview
+
+Part 3 extends the HBnB application with:
+- **JWT Authentication** for secure user sessions
+- **Role-Based Access Control** (Admin/Regular users)
+- **SQLAlchemy ORM** for database persistence
+- **Complete API** with protected endpoints
+- **SQL Scripts** for database setup
+- **ER Diagrams** for schema visualization
+
+---
+
+## ✨ Features
+
+### Authentication & Security
+- ✅ Password hashing with Bcrypt
+- ✅ JWT token-based authentication
+- ✅ Protected API endpoints
+- ✅ Admin-only operations
+- ✅ Ownership validation
+
+### Database
+- ✅ SQLAlchemy ORM models
+- ✅ Switchable repositories (InMemory/SQLAlchemy)
+- ✅ Foreign key relationships
+- ✅ Cascade delete operations
+- ✅ Database indexes for performance
+
+### API Endpoints
+- ✅ User management (CRUD)
+- ✅ Place listings (CRUD)
+- ✅ Reviews system (CRUD)
+- ✅ Amenities catalog (Admin only)
+- ✅ Authentication (Login)
+- ✅ Swagger documentation
+
+---
+
+## 📁 Project Structure
 ```
-part2/
-│
+part3/
 ├── app/
-│   ├── __init__.py                 # Flask app factory
-│   │
-│   ├── api/                        # Presentation Layer
-│   │   ├── __init__.py
-│   │   ├── users.py               # User endpoints
-│   │   ├── places.py              # Place endpoints (extended serialization)
-│   │   ├── reviews.py             # Review endpoints (with DELETE)
-│   │   └── amenities.py           # Amenity endpoints
-│   │
-│   ├── business/                   # Business Logic Layer
-│   │   ├── __init__.py
-│   │   ├── base_model.py          # Base entity (UUID, timestamps)
-│   │   ├── user.py                # User entity (email validation)
-│   │   ├── place.py               # Place entity (coordinate validation)
-│   │   ├── review.py              # Review entity (rating validation)
-│   │   ├── amenity.py             # Amenity entity
-│   │   └── facade.py              # Facade pattern implementation
-│   │
-│   └── persistence/                # Persistence Layer
-│       ├── __init__.py
-│       └── memory_repository.py    # In-memory CRUD operations
-│
-├── tests/                          # Testing
-│   ├── __init__.py
-│   └── test_models.py              # 52 unit tests
-│
-├── venv/                           # Virtual environment
-├── run.py                          # Application entry point
-├── run_all_tests.sh                # Test automation script
-├── requirements.txt                # Python dependencies
-└── README.md                       # This file
+│   ├── __init__.py              # Application factory
+│   ├── config.py                # Multi-environment configuration
+│   ├── api/                     # API endpoints
+│   │   ├── auth.py              # Authentication (login)
+│   │   ├── users.py             # User CRUD
+│   │   ├── places.py            # Place CRUD
+│   │   ├── reviews.py           # Review CRUD
+│   │   └── amenities.py         # Amenity CRUD (admin only)
+│   ├── business/                # Business logic
+│   │   ├── user.py              # User model
+│   │   ├── place.py             # Place model
+│   │   ├── review.py            # Review model
+│   │   ├── amenity.py           # Amenity model
+│   │   └── facade.py            # Facade pattern
+│   ├── models/                  # SQLAlchemy models
+│   │   ├── base.py              # Base model
+│   │   ├── user.py              # User ORM
+│   │   ├── place.py             # Place ORM
+│   │   ├── review.py            # Review ORM
+│   │   ├── amenity.py           # Amenity ORM
+│   │   └── place_amenity.py     # Many-to-many table
+│   └── persistence/             # Repository layer
+│       ├── memory_repository.py
+│       └── sqlalchemy_repository.py
+├── diagrams/                    # Database diagrams
+│   ├── database_schema.md       # Complete ER diagram
+│   ├── simple_schema.md         # Simplified view
+│   ├── class_diagram.md         # SQLAlchemy classes
+│   └── architecture.md          # System architecture
+├── sql_scripts/                 # Database scripts
+│   ├── schema.sql               # Table definitions
+│   ├── seed.sql                 # Initial data
+│   ├── queries.sql              # Verification queries
+│   └── setup.sh                 # Automated setup
+├── instance/
+│   └── development.db           # SQLite database
+├── .env                         # Environment variables
+├── run.py                       # Application entry point
+└── requirements.txt             # Python dependencies
 ```
 
 ---
 
-## Getting Started
+## 🗄️ Database
 
-### Prerequisites
+### Schema Overview
 
-- Python 3.10 or higher
-- pip (Python package manager)
+The database consists of 5 tables:
 
-### Installation
+1. **users** - User accounts
+2. **places** - Property listings
+3. **reviews** - User reviews
+4. **amenities** - Available amenities
+5. **place_amenity** - Many-to-many relationship
+
+### Relationships
+
+- **Users → Places** (One-to-Many): A user can own multiple places
+- **Users → Reviews** (One-to-Many): A user can write multiple reviews
+- **Places → Reviews** (One-to-Many): A place can have multiple reviews
+- **Places ↔ Amenities** (Many-to-Many): Places can have multiple amenities
+
+### Database Setup
+
+#### Quick Setup (Automated)
 ```bash
-# 1. Navigate to project directory
-cd part2
-
-# 2. Create virtual environment (if not exists)
-python3 -m venv venv
-
-# 3. Activate virtual environment
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# 4. Install dependencies
-pip install -r requirements.txt
+cd sql_scripts
+./setup.sh
 ```
 
-### Running the Application
+#### Manual Setup
 ```bash
-# Start the Flask development server
-python3 run.py
+# Create schema
+sqlite3 instance/development.db < sql_scripts/schema.sql
+
+# Insert initial data
+sqlite3 instance/development.db < sql_scripts/seed.sql
+
+# Verify
+sqlite3 instance/development.db < sql_scripts/queries.sql
 ```
 
-The API will be available at: `http://localhost:5001`
+### Initial Data
 
-**Access Swagger Documentation:** `http://localhost:5001/api/docs`
+**Administrator Account:**
+- Email: `admin@hbnb.com`
+- Password: `AdminPass123`
+- Role: Admin
+
+**Sample Users:**
+- `john@example.com` (Password: AdminPass123)
+- `jane@example.com` (Password: AdminPass123)
+
+**Amenities:** 10 common amenities (WiFi, AC, Pool, etc.)
+
+**Sample Data:** 3 places, 3 reviews, multiple amenity associations
+
+### Database Diagrams
+
+View ER diagrams in the `diagrams/` directory:
+
+- **database_schema.md** - Complete ER diagram with all attributes
+- **simple_schema.md** - Simplified view
+- **class_diagram.md** - SQLAlchemy class relationships
+- **architecture.md** - System architecture
+
+To view diagrams:
+- Open any `.md` file on GitHub (renders automatically)
 
 ---
 
-## Task Overview
+## 📚 API Documentation
 
-### Task 0: Project Setup and Package Initialization
+### Authentication
 
-**Objective:** Establish the initial project structure with proper separation of concerns.
+#### Login
+```bash
+POST /api/auth/login
+Content-Type: application/json
 
-**What Was Implemented:**
-- Three-layer architecture (Presentation, Business Logic, Persistence)
-- Flask application factory pattern
-- In-memory repository implementation
-- Facade pattern structure
-
-**Key Files:**
-- `app/__init__.py` - Flask app initialization
-- `app/persistence/memory_repository.py` - CRUD operations
-- `app/business/facade.py` - Business logic coordinator
-
----
-
-### Task 1: Core Business Logic Classes
-
-**Objective:** Implement fundamental entity models with validations and relationships.
-
-**Entities Implemented:**
-
-#### BaseModel
-- Auto-generated UUID
-- Timestamps (created_at, updated_at)
-- save() and to_dict() methods
-
-#### User
-```python
-Attributes:
-- first_name, last_name
-- email (validated with regex)
-- password (not returned in API responses)
-- is_admin
-- places[], reviews[]
-
-Validations:
-- Email format: ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$
-- Email uniqueness
-```
-
-#### Place
-```python
-Attributes:
-- title, description
-- price (validated >= 0)
-- latitude (validated -90 to 90)
-- longitude (validated -180 to 180)
-- owner_id
-- reviews[], amenities[]
-
-Validations:
-- Price must be positive
-- Coordinates within valid ranges
-- Owner must exist
-```
-
-#### Review
-```python
-Attributes:
-- rating (validated 1-5)
-- comment (validated not empty)
-- user_id, place_id
-
-Validations:
-- Rating must be integer 1-5
-- Comment cannot be empty/whitespace
-- User cannot review their own place
-```
-
-#### Amenity
-```python
-Attributes:
-- name (validated)
-- description
-
-Validations:
-- Name cannot be empty
-```
-
-**Relationships:**
-```
-User (1) ──────< (N) Place
-User (1) ──────< (N) Review
-Place (1) ─────< (N) Review
-Place (N) ─────< (N) Amenity
-```
-
----
-
-### Task 2: User Endpoints
-
-**Objective:** Implement CRUD operations for User management (excluding DELETE).
-
-**Endpoints:**
-```http
-POST   /api/users              Create user (201)
-GET    /api/users              List all users (200)
-GET    /api/users/{id}         Get user by ID (200/404)
-PUT    /api/users/{id}         Update user (200/404)
-```
-
-**Security Features:**
-- Password never returned in responses
-- Email uniqueness enforced
-- Email format validated
-
----
-
-### Task 3: Amenity Endpoints
-
-**Objective:** Implement CRUD operations for Amenity management (excluding DELETE).
-
-**Endpoints:**
-```http
-POST   /api/amenities          Create amenity (201)
-GET    /api/amenities          List all amenities (200)
-GET    /api/amenities/{id}     Get amenity by ID (200/404)
-PUT    /api/amenities/{id}     Update amenity (200/404)
-```
-
----
-
-### Task 4: Place Endpoints
-
-**Objective:** Implement CRUD with relationship handling and extended serialization.
-
-**Endpoints:**
-```http
-POST   /api/places             Create place (201)
-GET    /api/places             List all places (200)
-GET    /api/places/{id}        Get place with extended attributes (200/404)
-PUT    /api/places/{id}        Update place (200/404)
-```
-
-**Extended Serialization:**
-When retrieving a Place, the API includes:
-- Owner's complete information (first_name, last_name, email)
-- List of amenities with details
-- List of reviews with details
-
-**Example Response:**
-```json
 {
-  "id": "place-uuid",
-  "title": "Cozy Apartment",
-  "price": 120.50,
-  "owner": {
-    "id": "user-uuid",
+  "email": "user@example.com",
+  "password": "password123"
+}
+
+Response: { "access_token": "jwt_token_here" }
+```
+
+### Protected Endpoints
+
+All endpoints except `/api/users/` (POST) and `/api/auth/login` require JWT authentication.
+
+**Include token in requests:**
+```bash
+Authorization: Bearer <your_jwt_token>
+```
+
+### API Examples
+
+#### Create User (Public)
+```bash
+curl -X POST http://localhost:5001/api/users/ \
+  -H "Content-Type: application/json" \
+  -d '{
     "first_name": "John",
     "last_name": "Doe",
-    "email": "john@example.com"
-  },
-  "amenities": [
-    {"id": "amenity-uuid", "name": "WiFi"}
-  ],
-  "reviews": [
-    {"id": "review-uuid", "rating": 5, "comment": "Great!"}
-  ]
-}
+    "email": "john@example.com",
+    "password": "SecurePass123"
+  }'
 ```
 
----
-
-### Task 5: Review Endpoints
-
-**Objective:** Implement full CRUD including DELETE (only entity with DELETE in Part 2).
-
-**Endpoints:**
-```http
-POST   /api/reviews                              Create review (201)
-GET    /api/reviews                              List all reviews (200)
-GET    /api/reviews/{id}                         Get review (200/404)
-PUT    /api/reviews/{id}                         Update review (200/404)
-DELETE /api/reviews/{id}                         Delete review (204/404) 
-GET    /api/reviews/places/{place_id}/reviews    Get place reviews (200/404)
-```
-
-**DELETE Operation:**
-When a review is deleted:
-1. Removed from review repository
-2. Removed from user.reviews[] list
-3. Removed from place.reviews[] list
-4. Returns HTTP 204 No Content
-
-**Business Rules:**
-- User cannot review their own place
-- Rating must be 1-5 (integer)
-- Comment cannot be empty
-
----
-
-### Task 6: Testing and Validation
-
-**Objective:** Comprehensive testing with automated and manual approaches.
-
-**What Was Implemented:**
-
-#### Unit Tests (pytest)
-- 52 automated tests across 5 test classes
-- 96% code coverage
-- Tests for all validations and edge cases
-
-**Test Classes:**
-```
-TestUserModel (8 tests)
-TestPlaceModel (17 tests)
-TestReviewModel (15 tests)
-TestAmenityModel (8 tests)
-TestBaseModel (4 tests)
-```
-
-**Run Unit Tests:**
+#### Create Place (Protected)
 ```bash
-pytest tests/test_models.py -v
-
-# With coverage
-pytest tests/test_models.py --cov=app/business --cov-report=html
+curl -X POST http://localhost:5001/api/places/ \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Cozy Apartment",
+    "description": "Perfect location",
+    "price": 100.0,
+    "latitude": 40.7128,
+    "longitude": -74.0060
+  }'
 ```
 
-#### Integration Tests
-- 30 automated API tests with cURL
-- Tests all endpoints
-- Validates request/response flow
-
-**Run Integration Tests:**
+#### Create Amenity (Admin Only)
 ```bash
-python3 test_api.py
+curl -X POST http://localhost:5001/api/amenities/ \
+  -H "Authorization: Bearer <admin_token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "WiFi",
+    "description": "High-speed internet"
+  }'
 ```
 
-#### Run All Tests
-```bash
-./run_all_tests.sh
+### Swagger Documentation
+
+Interactive API documentation available at:
 ```
-
-**Expected Output:**
-```
-============================================
-HBnB API - Complete Test Suite
-============================================
-
- Server is running on port 5001
-
-============================================
-PART 1: Unit Tests (pytest)
-============================================
-==================== 52 passed in 0.5s ====================
- All unit tests passed!
-
-============================================
-PART 2: Integration Tests (API with cURL)
-============================================
- All integration tests passed!
-
-============================================
- ALL TESTS PASSED!
-============================================
+http://localhost:5001/api/docs
 ```
 
 ---
 
-## API Documentation
+## 🏗️ Architecture
 
-### Accessing Swagger UI
+### Design Patterns
 
-**URL:** `http://localhost:5001/api/docs`
+- **Application Factory**: Multi-environment configuration
+- **Repository Pattern**: Abstraction over data access
+- **Facade Pattern**: Simplified business logic interface
 
-The Swagger interface provides:
-- Interactive API testing ("Try it out" feature)
-- Complete endpoint documentation
-- Request/response schemas
-- Model definitions
-- Error response examples
+### Layers
 
-### Available Endpoints
+1. **API Layer** (Flask-RESTX)
+   - RESTful endpoints
+   - Request validation
+   - Response formatting
 
-| Entity | Endpoints | Operations |
-|--------|-----------|------------|
-| **Users** | `/api/users` | POST, GET, GET/:id, PUT/:id |
-| **Places** | `/api/places` | POST, GET, GET/:id, PUT/:id |
-| **Reviews** | `/api/reviews` | POST, GET, GET/:id, PUT/:id, DELETE/:id |
-| **Amenities** | `/api/amenities` | POST, GET, GET/:id, PUT/:id |
+2. **Business Logic Layer** (Facade)
+   - Business rules
+   - Validation
+   - Orchestration
 
-### Response Codes
+3. **Repository Layer**
+   - Data access abstraction
+   - Switchable implementations (InMemory/SQLAlchemy)
 
-| Code | Meaning | When |
-|------|---------|------|
-| 200 | OK | Successful GET/PUT |
-| 201 | Created | Successful POST |
-| 204 | No Content | Successful DELETE |
-| 400 | Bad Request | Validation error |
-| 404 | Not Found | Resource doesn't exist |
-| 500 | Server Error | Unexpected error |
+4. **Persistence Layer**
+   - SQLAlchemy ORM
+   - Database operations
+
+### Repository Switch
+
+The application can use either InMemory or SQLAlchemy repositories:
+```python
+# In .env
+USE_DATABASE=true   # Use SQLAlchemy
+USE_DATABASE=false  # Use InMemory (testing)
+```
 
 ---
 
-## Additional Documentation
+## ✅ Tasks Completed
 
-For more detailed information, see:
-- **Swagger UI:** `http://localhost:5001/api/docs`
-- **Test Reports:** Run `./run_all_tests.sh` for detailed test output
+### Task 0: Application Factory
+- ✅ Multi-environment configuration (Development, Testing, Production)
+- ✅ Environment-based settings
+- ✅ JWT configuration
+
+### Task 1: Password Hashing
+- ✅ Bcrypt password hashing
+- ✅ Secure password storage
+- ✅ Password verification
+
+### Task 2: JWT Authentication
+- ✅ Token generation
+- ✅ Token validation
+- ✅ Claims (user_id, is_admin)
+
+### Task 3: Authenticated User Access
+- ✅ Protected endpoints
+- ✅ Ownership validation
+- ✅ CRUD operations with authentication
+
+### Task 4: Administrator Access
+- ✅ Admin-only endpoints
+- ✅ Admin bypass for ownership checks
+- ✅ Role-based access control
+
+### Task 5: SQLAlchemy Repository
+- ✅ Repository implementation
+- ✅ Switchable repositories
+- ✅ CRUD operations
+
+### Task 6: Map User Entity
+- ✅ User SQLAlchemy model
+- ✅ Password hashing integration
+- ✅ Email validation
+
+### Task 7: Map Entities
+- ✅ Place SQLAlchemy model
+- ✅ Review SQLAlchemy model
+- ✅ Amenity SQLAlchemy model
+
+### Task 8: Map Relationships
+- ✅ One-to-Many relationships
+- ✅ Many-to-Many relationships
+- ✅ Foreign keys and constraints
+- ✅ Cascade delete operations
+
+### Task 9: SQL Scripts
+- ✅ Schema creation script
+- ✅ Data seeding script
+- ✅ Verification queries
+- ✅ Automated setup script
+
+### Task 10: Database Diagrams
+- ✅ Complete ER diagram
+- ✅ Simplified diagram
+- ✅ Class diagram
+- ✅ Architecture diagram
+
+---
+
+## 🔒 Security Features
+
+- **Password Hashing**: Bcrypt with salt
+- **JWT Tokens**: Secure token-based authentication
+- **Token Expiration**: Configurable token lifetime
+- **Role-Based Access**: Admin and regular user roles
+- **Ownership Validation**: Users can only modify their own data
+- **Admin Bypass**: Admins can manage all resources
+
+---
+
+## 🧪 Testing
+
+### Manual Testing
+```bash
+# Test user creation
+curl -X POST http://localhost:5001/api/users/ \
+  -H "Content-Type: application/json" \
+  -d '{"first_name":"Test","last_name":"User","email":"test@test.com","password":"Test123"}'
+
+# Test login
+curl -X POST http://localhost:5001/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@test.com","password":"Test123"}'
+
+# Use token for protected endpoints
+TOKEN="<your_token_here>"
+curl -X GET http://localhost:5001/api/users/ \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### Database Verification
+```bash
+# Run verification queries
+sqlite3 instance/development.db < sql_scripts/queries.sql
+
+# Check database manually
+sqlite3 instance/development.db
+.tables
+.schema users
+SELECT * FROM users;
+.quit
+```
+
+---
+
+## 📝 Environment Variables
+```bash
+# .env
+FLASK_ENV=development          # development, testing, production
+SECRET_KEY=<secret-key>        # Flask secret key
+JWT_SECRET_KEY=<jwt-key>       # JWT signing key
+USE_DATABASE=true              # true=SQLAlchemy, false=InMemory
+```
 
 ---
