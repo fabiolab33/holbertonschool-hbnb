@@ -15,12 +15,8 @@ class Place(BaseModel):
     price = db.Column(db.Float, nullable=False)
     latitude = db.Column(db.Float, nullable=True)
     longitude = db.Column(db.Float, nullable=True)
-    owner_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
-    
-    # Relationships
-    reviews = db.relationship('Review', backref='place', lazy=True, cascade='all, delete-orphan')
-    amenities = db.relationship('Amenity', secondary='place_amenity', back_populates='places', lazy=True)
-    
+    owner_id = db.Column(db.String(36), nullable=False)
+        
     def __init__(self, title, description, price, latitude, longitude, owner_id):
         """Initialize place with validation."""
         super().__init__()
@@ -43,13 +39,3 @@ class Place(BaseModel):
         self.latitude = latitude
         self.longitude = longitude
         self.owner_id = owner_id
-    
-    def add_amenity(self, amenity):
-        """Add an amenity to this place."""
-        if amenity not in self.amenities:
-            self.amenities.append(amenity)
-    
-    def remove_amenity(self, amenity):
-        """Remove an amenity from this place."""
-        if amenity in self.amenities:
-            self.amenities.remove(amenity)
