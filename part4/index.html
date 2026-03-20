@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="HBnB - Login to your account">
+    <title>HBnB - Login</title>
+    <link rel="stylesheet" href="static/css/styles.css">
+    <link rel="icon" href="static/images/icon.png" type="image/png">
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <img src="static/images/logo.png" alt="HBnB Logo" class="logo">
+            <nav>
+                <a href="places.html" class="login-button">Browse Places</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="form-container">
+            <h1>Welcome to HBnB</h1>
+            <p class="text-center mb-2">Please login to continue</p>
+            
+            <form id="login-form" class="form">
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input 
+                        type="email" 
+                        id="email" 
+                        name="email" 
+                        required 
+                        placeholder="Enter your email"
+                        autocomplete="email"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password" 
+                        required 
+                        placeholder="Enter your password"
+                        autocomplete="current-password"
+                    >
+                </div>
+
+                <div id="error-message" class="error-message"></div>
+
+                <button type="submit">Login</button>
+            </form>
+
+            <p class="text-center mt-2">
+                Don't have an account? Contact your administrator.
+            </p>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2024 HBnB. All rights reserved.</p>
+    </footer>
+
+    <script src="static/js/auth.js"></script>
+</body>
+</html>
