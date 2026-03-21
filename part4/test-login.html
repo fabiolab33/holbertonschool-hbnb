@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Login Functions</title>
+</head>
+<body>
+    <h1>Login Function Tests</h1>
+    <div id="results"></div>
+
+    <script src="static/js/auth.js"></script>
+    <script>
+        const resultsDiv = document.getElementById('results');
+
+        // Test 1: Cookie functions
+        console.log('Test 1: Cookie Functions');
+        HBnBAuth.setCookie('test', 'value123', 1);
+        const testValue = HBnBAuth.getCookie('test');
+        console.log('Set and get cookie:', testValue === 'value123' ? 'PASS' : 'FAIL');
+
+        // Test 2: Authentication check
+        console.log('Test 2: Authentication Check');
+        console.log('Is authenticated:', HBnBAuth.isAuthenticated());
+
+        // Test 3: Get token
+        console.log('Test 3: Get Token');
+        console.log('Token:', HBnBAuth.getToken());
+
+        resultsDiv.innerHTML = '<p>Check console for test results</p>';
+    </script>
+</body>
+</html>
