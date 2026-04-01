@@ -1,5 +1,12 @@
-# part3/run.py
+from dotenv import load_dotenv
 import os
+
+# CRITICAL: Load .env BEFORE importing app
+load_dotenv()
+
+# Verify environment loaded
+print(f"🔧 Environment: USE_DATABASE = {os.getenv('USE_DATABASE')}")
+
 from app import create_app
 
 config_name = os.environ.get('FLASK_ENV', 'development')

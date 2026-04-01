@@ -13,9 +13,9 @@ class SQLAlchemyRepository:
         """
         self.model = model
 
-    def create(self, obj):
+    def add(self, obj):
         """
-        Create a new object in the database.
+        Add a new object to the database.
         
         Args:
             obj: SQLAlchemy model instance
@@ -27,6 +27,9 @@ class SQLAlchemyRepository:
         db.session.commit()
         db.session.refresh(obj)
         return obj
+    
+    # Alias for compatibility
+    create = add
 
     def get(self, obj_id):
         """
@@ -40,6 +43,33 @@ class SQLAlchemyRepository:
         """
         return db.session.get(self.model, obj_id)
     
+    def get_all(self):
+        """
+        Get all objects.
+        
+        Returns:
+            List of all objects
+        """
+        return db.session.query(self.model).all()
+    
+    # Alias for compatibility
+    list = get_all
+
+    def get_by_attribute(self, attr_name, attr_value):
+        """
+        Get object by any attribute.
+        
+        Args:
+            attr_name: Attribute name (e.g., 'email')
+            attr_value: Attribute value
+            
+        Returns:
+            Object or None if not found
+        """
+        return db.session.query(self.model).filter(
+            getattr(self.model, attr_name) == attr_value
+        ).first()
+    
     def get_by_email(self, email):
         """
         Get user by email (for User model).
@@ -50,24 +80,15 @@ class SQLAlchemyRepository:
         Returns:
             User object or None
         """
-        return db.session.query(self.model).filter_by(email=email).first()
+        return self.get_by_attribute('email', email)
 
-    def list(self):
-        """
-        List all objects.
-        
-        Returns:
-            List of all objects
-        """
-        return db.session.query(self.model).all()
-
-    def update(self, obj_id, **kwargs):
+    def update(self, obj_id, data):
         """
         Update an object's attributes.
         
         Args:
             obj_id: Object ID
-            **kwargs: Attributes to update
+            data: Dictionary of attributes to update
             
         Returns:
             Updated object or None if not found
@@ -77,11 +98,11 @@ class SQLAlchemyRepository:
             return None
         
         # Handle password separately if it's a User model
-        if 'password' in kwargs and hasattr(obj, 'set_password'):
-            obj.set_password(kwargs.pop('password'))
+        if 'password' in data and hasattr(obj, 'set_password'):
+            obj.set_password(data.pop('password'))
         
         # Update other attributes
-        for key, value in kwargs.items():
+        for key, value in data.items():
             if hasattr(obj, key) and key not in ['id', 'created_at']:
                 setattr(obj, key, value)
         

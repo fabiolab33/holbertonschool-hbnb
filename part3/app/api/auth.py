@@ -4,8 +4,12 @@ Authentication endpoints for JWT-based login.
 from flask_restx import Namespace, Resource, fields
 from flask import request
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from app.business.facade import HBnBFacade
 
 api = Namespace('auth', description='Authentication operations')
+
+# Create facade instance
+facade = HBnBFacade()
 
 # API Models
 login_model = api.model('Login', {
@@ -29,7 +33,7 @@ token_response_model = api.model('TokenResponse', {
 class Login(Resource):
     @api.doc('user_login')
     @api.expect(login_model, validate=True)
-    @api.response(200, 'Login successful', token_response_model)
+    @api.response(200, 'Login successful')
     @api.response(400, 'Invalid credentials')
     @api.response(401, 'Unauthorized')
     def post(self):
@@ -38,9 +42,7 @@ class Login(Resource):
         
         Returns JWT access token if credentials are valid.
         Token includes user identity and is_admin claim.
-        """
-        from app import facade
-        
+        """        
         try:
             data = request.get_json()
             email = data.get('email')
@@ -60,19 +62,13 @@ class Login(Resource):
                 return {'message': 'Invalid credentials'}, 401
             
             # Create JWT token with additional claims
-            additional_claims = {
-                'is_admin': user.is_admin
-            }
             access_token = create_access_token(
-                identity=user.id,
-                additional_claims=additional_claims
+                identity=str(user.id),
+                additional_claims={'is_admin': user.is_admin}
             )
             
             # Return token and user info (without password)
-            return {
-                'access_token': access_token,
-                'user': user.to_dict()
-            }, 200
+            return {'access_token': access_token}, 200
             
         except Exception as e:
             return {'message': f'Login error: {str(e)}'}, 500
