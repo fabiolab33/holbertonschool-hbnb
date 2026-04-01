@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HBnB - Places</title>
+    <link rel="stylesheet" href="static/css/styles.css">
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <h1>HBnB</h1>
+            <nav>
+                <button id="logout-button" class="logout-button">Logout</button>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <section class="filters">
+            <h2>Filter Places</h2>
+            <div class="form-group">
+                <label for="price-filter">Maximum Price:</label>
+                <select id="price-filter">
+                    <option value="all">All Prices</option>
+                </select>
+            </div>
+        </section>
+
+        <section id="places-section">
+            <h1 class="text-center">Available Places</h1>
+            <div id="places-container" class="places-container">
+                <p class="loading">Loading places...</p>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2024 HBnB. All rights reserved.</p>
+    </footer>
+
+    <script src="static/js/places.js"></script>
+</body>
+</html>
